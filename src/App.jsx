@@ -8,7 +8,6 @@ import {
   DownOutlined,
   ExclamationCircleOutlined,
   ExportOutlined,
-  FileExcelOutlined,
   FileSearchOutlined,
   InboxOutlined,
   LeftOutlined,
@@ -61,6 +60,28 @@ const initialPlans = [
     id: "RP202606220003",
     date: "2026-06-22",
     region: "华北",
+    warehouse: "济南RDC",
+    category: "个人护理",
+    method: "区采",
+    skuCount: 36,
+    status: "待确认中标",
+    snapshot: "V1",
+    external: "BID260622003",
+    updated: "11:00",
+    planner: "王五",
+    suggestionQty: 2040,
+    confirmQty: 2010,
+    changedSku: 2,
+    bidQty: 2020,
+    finalBidQty: 2010,
+    suppliers: 5,
+    abnormalSku: 0,
+    deadline: "2026-06-22 10:30",
+  },
+  {
+    id: "RP202606220004",
+    date: "2026-06-22",
+    region: "华北",
     warehouse: "石家庄RDC",
     category: "酒水",
     method: "区采",
@@ -82,7 +103,7 @@ const initialPlans = [
     ],
   },
   {
-    id: "RP202606220004",
+    id: "RP202606220005",
     date: "2026-06-22",
     region: "华北",
     warehouse: "太原RDC",
@@ -91,7 +112,7 @@ const initialPlans = [
     skuCount: 18,
     status: "执行失败",
     snapshot: "V1",
-    external: "BID260622004",
+    external: "BID260622005",
     updated: "12:25",
     planner: "李四",
     suggestionQty: 980,
@@ -140,6 +161,11 @@ function StatusTag({ status }) {
   return <span className={`status-tag ${statusStyle[status] || "muted"}`}>{status}</span>;
 }
 
+function hasBidResultFile(plan) {
+  return plan.method === "区采"
+    && Boolean(plan.bidSnapshot || plan.bidQty !== undefined || plan.status === "待确认中标");
+}
+
 function IconButton({ title, children, onClick, className = "" }) {
   return (
     <button className={`icon-button ${className}`} title={title} aria-label={title} onClick={onClick}>
@@ -171,7 +197,6 @@ function Modal({ title, children, confirmText, onConfirm, onClose, danger = fals
 export function App() {
   const [plans, setPlans] = useState(initialPlans);
   const [selectedId, setSelectedId] = useState(initialPlans[1].id);
-  const [drawerOpen, setDrawerOpen] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
   const [filters, setFilters] = useState({
     dateFrom: "2026-06-22", dateTo: "2026-06-22", warehouse: "全部", category: "全部", method: "全部", status: "全部", id: "",
@@ -204,13 +229,13 @@ export function App() {
     setPlans((current) => current.map((plan) => plan.id === id ? { ...plan, ...patch } : plan));
   }
 
-  function openFeishu(plan = selected) {
-    notify(`已打开 ${plan.id} 的飞书订货表（原型模拟）`);
+  function openFeishu(plan = selected, fileType = "plan") {
+    const fileName = fileType === "bid" ? "中标结果确认表" : "商品级订货建议明细";
+    notify(`已打开 ${plan.id} 的${fileName}（原型模拟）`);
   }
 
-  function handlePrimary(plan, keepDrawer = false) {
+  function handlePrimary(plan) {
     setSelectedId(plan.id);
-    if (!keepDrawer) setDrawerOpen(false);
     if (plan.status === "待确认计划") setModal("confirm-plan");
     else if (plan.status === "待发起竞标") setModal("start-bid");
     else if (plan.status === "竞标中") setModal("view-bid");
@@ -287,13 +312,14 @@ export function App() {
     notify(`订单 ${cancelOrder.no} 已取消`);
   }
 
-  const action = statusAction(selected);
-  const canReconfirm = selected.snapshot !== "—"
-    && ((selected.method === "区采" && selected.status === "待发起竞标")
-      || (selected.method === "厂家直采" && selected.status === "待确认下单"));
+  function canReconfirmPlan(plan) {
+    return plan.snapshot !== "—"
+      && ((plan.method === "区采" && plan.status === "待发起竞标")
+        || (plan.method === "厂家直采" && plan.status === "待确认下单"));
+  }
 
   return (
-    <div className={`app-shell ${collapsed ? "sidebar-collapsed" : ""} ${drawerOpen ? "drawer-active" : ""}`}>
+    <div className={`app-shell ${collapsed ? "sidebar-collapsed" : ""}`}>
       <aside className="sidebar">
         <div className="brand">
           <InboxOutlined className="brand-icon" />
@@ -391,35 +417,46 @@ export function App() {
                 <thead>
                   <tr>
                     <th>计划日期</th><th>计划单号</th><th>仓库</th><th>采购品类</th><th>采购方式</th>
-                    <th>SKU数</th><th>当前状态</th><th>飞书表格</th><th>外部单据</th><th>更新时间</th><th>操作</th>
+                    <th>SKU数</th><th>当前状态</th><th>飞书文件</th><th>外部单据</th><th>更新时间</th><th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredPlans.map((plan) => {
                     const rowAction = statusAction(plan);
                     return (
-                      <tr key={plan.id} className={plan.id === selectedId ? "selected" : ""} onClick={() => {
-                        setSelectedId(plan.id); setDrawerOpen(true);
-                      }}>
+                      <tr key={plan.id}>
                         <td>{plan.date}</td>
-                        <td><button className="link-button" onClick={(event) => {
-                          event.stopPropagation();
-                          setSelectedId(plan.id);
-                          setDrawerOpen(true);
-                        }}>{plan.id}</button></td>
+                        <td>{plan.id}</td>
                         <td>{plan.warehouse}</td>
                         <td>{plan.category}</td>
                         <td>{plan.method}</td>
                         <td className="number-cell">{plan.skuCount}</td>
                         <td><StatusTag status={plan.status} /></td>
-                        <td><button className="link-button" onClick={(e) => { e.stopPropagation(); openFeishu(plan); }}>打开表格 <ExportOutlined /></button></td>
+                        <td>
+                          <div className="file-links">
+                            <button className="link-button" onClick={(e) => { e.stopPropagation(); openFeishu(plan, "plan"); }}>订货明细 <ExportOutlined /></button>
+                            {hasBidResultFile(plan) && (
+                              <button className="link-button" onClick={(e) => { e.stopPropagation(); openFeishu(plan, "bid"); }}>中标结果 <ExportOutlined /></button>
+                            )}
+                          </div>
+                        </td>
                         <td>{plan.external}</td>
                         <td>{plan.date} {plan.updated}</td>
                         <td>
                           <div className="row-actions">
-                            <button className="row-primary" onClick={(e) => { e.stopPropagation(); handlePrimary(plan); }}>
+                            <button className="row-primary" onClick={() => handlePrimary(plan)}>
                               {rowAction.icon}{rowAction.label}
                             </button>
+                            {canReconfirmPlan(plan) && (
+                              <button className="row-secondary" onClick={() => {
+                                setSelectedId(plan.id);
+                                setModal("reconfirm-plan");
+                              }}><ReloadOutlined />重新确认</button>
+                            )}
+                            <button className="row-record" onClick={() => {
+                              setSelectedId(plan.id);
+                              setModal("history");
+                            }}><UnorderedListOutlined />操作记录</button>
                           </div>
                         </td>
                       </tr>
@@ -440,89 +477,22 @@ export function App() {
         </div>
       </main>
 
-      {drawerOpen && selected && (
-        <aside className="drawer">
-          <header className="drawer-header">
-            <h2>计划单　{selected.id}</h2>
-            <IconButton title="关闭详情" onClick={() => setDrawerOpen(false)}><CloseOutlined /></IconButton>
-          </header>
-          <div className="drawer-content">
-            <section className="detail-section">
-              <h3>基本信息</h3>
-              <div className="detail-grid">
-                <span>计划日期</span><b>{selected.date}</b><span>仓库</span><b>{selected.warehouse}</b>
-                <span>采购品类</span><b>{selected.category}</b><span>采购方式</span><b>{selected.method}</b>
-                <span>计划状态</span><b><StatusTag status={selected.status} /></b><span>SKU数</span><b>{selected.skuCount}</b>
-                <span>计划员</span><b>{selected.planner}</b><span>更新时间</span><b>{selected.date} {selected.updated}</b>
-              </div>
-              <button className="button outline wide-link" onClick={() => openFeishu(selected)}><FileExcelOutlined />打开飞书表格 <ExportOutlined /></button>
-            </section>
-            <section className="detail-section">
-              <h3>计划快照 {selected.snapshot !== "—" ? selected.snapshot : ""}</h3>
-              {selected.snapshot === "—" ? <p className="muted-copy">计划尚未确认，当前以飞书表格最新内容为准。</p> : (
-                <div className="detail-grid">
-                  <span>创建时间</span><b>{selected.date} 09:10</b><span>快照版本</span><b>{selected.snapshot}</b>
-                  <span>SKU数</span><b>{selected.skuCount}</b><span>改量SKU</span><b>{selected.changedSku}</b>
-                  <span>系统建议量</span><b>{formatNumber(selected.suggestionQty)}</b><span>人工确认量</span><b>{formatNumber(selected.confirmQty)}</b>
-                </div>
-              )}
-            </section>
-            {selected.method === "区采" && (
-              <section className="detail-section">
-                <h3>区采信息</h3>
-                <div className="detail-grid">
-                  <span>竞标任务号</span><b>{selected.external?.startsWith("BID") ? selected.external : "—"}</b>
-                  <span>截止时间</span><b>{selected.deadline || "—"}</b>
-                  <span>中标供应商</span><b>{selected.suppliers || "—"}</b>
-                  <span>中标快照</span><b>{selected.bidSnapshot || "—"}</b>
-                </div>
-              </section>
-            )}
-            <section className="detail-section">
-              <h3>订单信息</h3>
-              {selected.orders?.length ? selected.orders.map((order) => (
-                <div className="order-line" key={order.no}>
-                  <div><b>{order.no}</b><span>{order.supplier} · {order.sku} SKU</span></div>
-                  <StatusTag status={order.status === "已取消" ? "已取消" : "已建单"} />
-                </div>
-              )) : <p className="muted-copy">尚未创建采购订单</p>}
-            </section>
-            <section className="detail-section">
-              <h3>操作记录</h3>
-              <div className="timeline">
-                <div><i /><span>{selected.date} 09:00</span><b>系统生成订货计划</b></div>
-                {selected.snapshot !== "—" && <div><i /><span>{selected.date} 09:10</span><b>{selected.planner} 确认计划，生成快照 {selected.snapshot}</b></div>}
-                {selected.external !== "—" && <div><i /><span>{selected.date} {selected.updated}</span><b>更新至「{selected.status}」</b></div>}
-              </div>
-            </section>
-          </div>
-          <footer className="drawer-footer">
-            {canReconfirm && (
-              <button className="button secondary" onClick={() => setModal("reconfirm-plan")}>
-                <ReloadOutlined />重新确认计划
-              </button>
-            )}
-            {action && <button className="button primary drawer-primary" onClick={() => handlePrimary(selected, true)}>{action.icon}{action.label}</button>}
-          </footer>
-        </aside>
-      )}
-
       {modal === "confirm-plan" && (
         <Modal title="确认计划" confirmText="确认并生成快照" onClose={() => setModal(null)} onConfirm={() => confirmPlan(false)}>
-          <div className="modal-notice success-notice"><CheckCircleOutlined />飞书表格读取完成，数据校验通过</div>
+          <div className="modal-notice success-notice"><CheckCircleOutlined />商品级订货建议明细读取完成，数据校验通过</div>
           <div className="summary-grid">
             <span>计划单号</span><b>{selected.id}</b><span>待生成快照</span><b>V1</b>
             <span>SKU数</span><b>{selected.skuCount}</b><span>改量SKU</span><b>{selected.changedSku}</b>
             <span>系统建议量</span><b>{formatNumber(selected.suggestionQty)}</b><span>人工确认量</span><b>{formatNumber(selected.confirmQty)}</b>
           </div>
-          <button className="inline-link" onClick={() => openFeishu(selected)}>打开飞书表格核对 <ExportOutlined /></button>
+          <button className="inline-link" onClick={() => openFeishu(selected, "plan")}>打开订货明细核对 <ExportOutlined /></button>
           <p className="modal-tip">确认后将保存不可变快照。飞书后续修改不会影响本次执行数据。</p>
         </Modal>
       )}
 
       {modal === "reconfirm-plan" && (
         <Modal title="重新确认计划" confirmText="确认并生成新版本" onClose={() => setModal(null)} onConfirm={() => confirmPlan(true)}>
-          <div className="modal-notice success-notice"><CheckCircleOutlined />飞书表格最新内容读取完成，数据校验通过</div>
+          <div className="modal-notice success-notice"><CheckCircleOutlined />商品级订货建议明细最新内容读取完成，数据校验通过</div>
           <div className="summary-grid">
             <span>计划单号</span><b>{selected.id}</b><span>当前快照</span><b>{selected.snapshot}</b>
             <span>SKU数</span><b>{selected.skuCount}</b><span>改量SKU</span><b>{selected.changedSku}</b>
@@ -564,14 +534,14 @@ export function App() {
 
       {modal === "confirm-bid" && (
         <Modal title="确认中标结果" confirmText="确认并生成快照" disabled={selected.abnormalSku > 0} onClose={() => setModal(null)} onConfirm={confirmBid}>
-          <div className="modal-notice success-notice"><CheckCircleOutlined />中标结果 Sheet 读取完成</div>
+          <div className="modal-notice success-notice"><CheckCircleOutlined />中标结果确认表读取完成</div>
           <div className="summary-grid">
             <span>竞标任务号</span><b>{selected.external}</b><span>待生成快照</span><b>B1</b>
             <span>中标SKU</span><b>{selected.skuCount - (selected.abnormalSku || 0)}</b><span>供应商数</span><b>{selected.suppliers}</b>
             <span>原始中标总量</span><b>{formatNumber(selected.bidQty)}</b><span>确认中标总量</span><b>{formatNumber(selected.finalBidQty)}</b>
             <span>修改数量SKU</span><b>3</b><span>异常SKU</span><b className="warning-text">{selected.abnormalSku || 0}</b>
           </div>
-          <button className="inline-link" onClick={() => openFeishu(selected)}>打开中标结果 Sheet <ExportOutlined /></button>
+          <button className="inline-link" onClick={() => openFeishu(selected, "bid")}>打开中标结果确认表 <ExportOutlined /></button>
           <p className="modal-tip">后续下单将使用“确认中标量”。原始中标结果会独立保存。</p>
         </Modal>
       )}
@@ -608,6 +578,29 @@ export function App() {
             <span>外部单据</span><b>{selected.external}</b><span>发生时间</span><b>{selected.date} {selected.updated}</b>
           </div>
           <p className="failure-copy">{selected.failureReason}</p>
+        </Modal>
+      )}
+
+      {modal === "history" && (
+        <Modal title={`操作记录 · ${selected.id}`} confirmText="关闭" onClose={() => setModal(null)} onConfirm={() => setModal(null)}>
+          <div className="history-summary">
+            <span>{selected.warehouse}</span>
+            <span>{selected.category}</span>
+            <span>{selected.method}</span>
+            <StatusTag status={selected.status} />
+          </div>
+          <div className="timeline history-timeline">
+            <div><i /><span>{selected.date} 09:00</span><b>系统生成订货计划及订货明细文件</b></div>
+            {selected.snapshot !== "—" && (
+              <div><i /><span>{selected.date} 09:10</span><b>{selected.planner} 确认计划，生成快照 {selected.snapshot}</b></div>
+            )}
+            {hasBidResultFile(selected) && (
+              <div><i /><span>{selected.date} 10:45</span><b>系统生成中标结果确认文件</b></div>
+            )}
+            {selected.external !== "—" && (
+              <div><i /><span>{selected.date} {selected.updated}</span><b>状态更新为「{selected.status}」</b></div>
+            )}
+          </div>
         </Modal>
       )}
 
