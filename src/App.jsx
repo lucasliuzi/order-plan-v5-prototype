@@ -4,7 +4,6 @@ import {
   CalendarOutlined,
   CheckCircleOutlined,
   CloseOutlined,
-  DeleteOutlined,
   DownOutlined,
   ExclamationCircleOutlined,
   ExportOutlined,
@@ -36,8 +35,10 @@ const initialPlans = [
     updated: "09:00",
     planner: "张三",
     suggestionQty: 2860,
-    confirmQty: 2860,
-    changedSku: 0,
+    confirmQty: 1860,
+    confirmedSku: 28,
+    changedSku: 18,
+    executionNo: 0,
   },
   {
     id: "RP202606220002",
@@ -53,82 +54,77 @@ const initialPlans = [
     updated: "09:15",
     planner: "张三",
     suggestionQty: 6280,
-    confirmQty: 6400,
-    changedSku: 6,
-  },
-  {
-    id: "RP202606220003",
-    date: "2026-06-22",
-    region: "华北",
-    warehouse: "济南RDC",
-    category: "个人护理",
-    method: "区采",
-    skuCount: 36,
-    status: "待确认中标",
-    snapshot: "V1",
-    external: "BID260622003",
-    updated: "11:00",
-    planner: "王五",
-    suggestionQty: 2040,
-    confirmQty: 2010,
-    changedSku: 2,
-    bidQty: 2020,
-    finalBidQty: 2010,
-    suppliers: 5,
-    abnormalSku: 0,
-    deadline: "2026-06-22 10:30",
+    confirmQty: 3200,
+    confirmedSku: 42,
+    changedSku: 42,
+    executionNo: 0,
   },
   {
     id: "RP202606220004",
     date: "2026-06-22",
     region: "华北",
-    warehouse: "石家庄RDC",
-    category: "酒水",
+    warehouse: "郑州RDC",
+    category: "休闲食品",
     method: "区采",
-    skuCount: 35,
-    status: "部分成功",
-    snapshot: "V1",
-    external: "2成功 / 1失败",
-    updated: "12:10",
+    skuCount: 41,
+    status: "已截标",
+    snapshot: "V2",
+    external: "2个竞标任务",
+    updated: "13:40",
     planner: "李四",
-    suggestionQty: 2200,
-    confirmQty: 2180,
-    changedSku: 2,
-    bidSnapshot: "B1",
-    failureStage: "创建采购订单",
-    failureReason: "1 个供应商的结算主体缺失，订单未创建。",
-    orders: [
-      { no: "PO2606220003", supplier: "河北优选商贸", sku: 16, amount: 23800, status: "可取消" },
-      { no: "PO2606220004", supplier: "石家庄华盛供应链", sku: 11, amount: 15100, status: "可取消" },
+    suggestionQty: 2520,
+    confirmQty: 2140,
+    confirmedSku: 35,
+    changedSku: 9,
+    bidQty: 2060,
+    manualBidQty: 1380,
+    manualBidSku: 23,
+    suppliers: 4,
+    abnormalSku: 0,
+    syncStatus: "已同步",
+    lastSyncedAt: "2026-06-22 13:40",
+    newSkuCount: 2,
+    newSkuQty: 120,
+    bidBatches: [
+      { batch: "FB01", task: "BID260622004A", sku: 35, qty: 2140, deadline: "2026-06-22 11:30", status: "已截标" },
+      { batch: "FB02", task: "BID260622004B", sku: 4, qty: 260, deadline: "2026-06-22 12:30", status: "已截标" },
     ],
+    executionNo: 0,
   },
   {
     id: "RP202606220005",
     date: "2026-06-22",
     region: "华北",
-    warehouse: "太原RDC",
-    category: "调味品",
-    method: "区采",
-    skuCount: 18,
-    status: "执行失败",
+    warehouse: "石家庄RDC",
+    category: "酒水",
+    method: "厂家直采",
+    skuCount: 35,
+    status: "已取消",
     snapshot: "V1",
-    external: "BID260622005",
-    updated: "12:25",
+    external: "执行批次 EX01 已取消",
+    updated: "17:05",
     planner: "李四",
-    suggestionQty: 980,
-    confirmQty: 960,
-    changedSku: 1,
-    failureStage: "查询中标结果",
-    failureReason: "竞标接口超时，未取得明确结果；系统未自动重试。",
+    suggestionQty: 2200,
+    confirmQty: 0,
+    confirmedSku: 0,
+    changedSku: 8,
+    latestSheetQty: 2460,
+    latestSheetSku: 33,
+    latestSheetTotalSku: 37,
+    resetStatus: "已重置",
+    executionNo: 1,
+    executionBatch: "EX01",
+    orders: [
+      { no: "PO2606220003", supplier: "河北优选商贸", sku: 16, amount: 23800, status: "已取消" },
+      { no: "PO2606220004", supplier: "石家庄华盛供应链", sku: 15, amount: 21100, status: "已取消" },
+    ],
   },
 ];
 
 const statusStyle = {
   待确认计划: "warning",
-  待发起竞标: "warning",
   竞标中: "processing",
-  待确认中标: "warning",
-  待确认下单: "warning",
+  已截标: "warning",
   建单中: "processing",
   已建单: "success",
   部分成功: "warning",
@@ -138,19 +134,31 @@ const statusStyle = {
 };
 
 function statusAction(plan) {
+  if (plan.status === "待确认计划") {
+    return plan.method === "厂家直采"
+      ? { label: "确认计划并下单", icon: <ShoppingCartOutlined /> }
+      : { label: "确认计划并发起竞标", icon: <SendOutlined /> };
+  }
+  if (plan.status === "已截标") {
+    return plan.syncStatus === "已同步"
+      ? { label: "确认中标并下单", icon: <ShoppingCartOutlined /> }
+      : { label: plan.syncStatus === "同步失败" ? "重试同步" : "同步中标结果", icon: <ReloadOutlined /> };
+  }
+  if (plan.status === "已取消") {
+    return { label: "再次下单", icon: <ShoppingCartOutlined /> };
+  }
   return {
-    待确认计划: { label: "确认计划", icon: <CheckCircleOutlined /> },
-    待发起竞标: { label: "发起竞标", icon: <SendOutlined /> },
     竞标中: { label: "查看竞标", icon: <FileSearchOutlined /> },
-    待确认中标: { label: "确认中标结果", icon: <CheckCircleOutlined /> },
-    待确认下单: { label: "确认下单", icon: <ShoppingCartOutlined /> },
     建单中: { label: "查询建单结果", icon: <ReloadOutlined /> },
     已建单: { label: "查看订单", icon: <FileSearchOutlined /> },
     部分成功: { label: "查看处理结果", icon: <FileSearchOutlined /> },
     执行失败: { label: "查看失败原因", icon: <ExclamationCircleOutlined /> },
     部分取消: { label: "查看订单", icon: <FileSearchOutlined /> },
-    已取消: { label: "查看取消记录", icon: <UnorderedListOutlined /> },
   }[plan.status];
+}
+
+function primaryDisabledReason(plan) {
+  return "";
 }
 
 function formatNumber(value) {
@@ -161,9 +169,9 @@ function StatusTag({ status }) {
   return <span className={`status-tag ${statusStyle[status] || "muted"}`}>{status}</span>;
 }
 
-function hasBidResultFile(plan) {
+function hasBidResultSheet(plan) {
   return plan.method === "区采"
-    && Boolean(plan.bidSnapshot || plan.bidQty !== undefined || plan.status === "待确认中标");
+    && Boolean(plan.bidSnapshot || plan.bidQty !== undefined || plan.syncStatus === "已同步");
 }
 
 function IconButton({ title, children, onClick, className = "" }) {
@@ -206,7 +214,8 @@ export function App() {
   const [flowOpen, setFlowOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [deadline, setDeadline] = useState("2026-06-22T17:30");
-  const [cancelOrder, setCancelOrder] = useState(null);
+  const [syncingId, setSyncingId] = useState(null);
+  const [readingKey, setReadingKey] = useState(null);
 
   const selected = plans.find((plan) => plan.id === selectedId) || plans[0];
   const filteredPlans = useMemo(() => plans.filter((plan) => {
@@ -229,93 +238,269 @@ export function App() {
     setPlans((current) => current.map((plan) => plan.id === id ? { ...plan, ...patch } : plan));
   }
 
-  function openFeishu(plan = selected, fileType = "plan") {
-    const fileName = fileType === "bid" ? "中标结果确认表" : "商品级订货建议明细";
-    notify(`已打开 ${plan.id} 的${fileName}（原型模拟）`);
+  function openFeishu(plan = selected, sheet = "plan") {
+    const sheetName = sheet === "bid" ? "中标结果 Sheet" : "计划明细 Sheet";
+    notify(`已打开 ${plan.id} 的飞书电子表格 · ${sheetName}（原型模拟）`);
+  }
+
+  function readFeishuThen(plan, type, nextModal) {
+    const key = `${plan.id}:${type}`;
+    if (readingKey) return;
+    setSelectedId(plan.id);
+    setReadingKey(key);
+    window.setTimeout(() => {
+      if (type === "plan" && (!plan.confirmedSku || plan.confirmQty <= 0)) {
+        setReadingKey(null);
+        notify("当前没有可执行的订货商品，请先在飞书表格填写人工确认量");
+        return;
+      }
+      if (type === "bid" && (!plan.manualBidSku || plan.manualBidQty <= 0)) {
+        setReadingKey(null);
+        notify("当前没有可下单的中标商品，请先在中标结果 Sheet 填写人工确认量");
+        return;
+      }
+      if (type === "rebid" && (!plan.newSkuCount || plan.newSkuCount <= 0)) {
+        setReadingKey(null);
+        notify("未发现新增待发标 SKU，本次未创建竞标任务");
+        return;
+      }
+      setReadingKey(null);
+      setModal(nextModal);
+    }, 650);
   }
 
   function handlePrimary(plan) {
     setSelectedId(plan.id);
-    if (plan.status === "待确认计划") setModal("confirm-plan");
-    else if (plan.status === "待发起竞标") setModal("start-bid");
+    const disabledReason = primaryDisabledReason(plan);
+    if (disabledReason) {
+      notify(disabledReason);
+      return;
+    }
+    if (plan.status === "待确认计划") {
+      readFeishuThen(plan, "plan", plan.method === "厂家直采" ? "confirm-direct" : "confirm-and-bid");
+    }
     else if (plan.status === "竞标中") setModal("view-bid");
-    else if (plan.status === "待确认中标") setModal("confirm-bid");
-    else if (plan.status === "待确认下单") setModal("confirm-order");
+    else if (plan.status === "已截标" && plan.syncStatus === "已同步") readFeishuThen(plan, "bid", "confirm-bid-and-order");
+    else if (plan.status === "已截标") syncBidResult(plan);
     else if (plan.status === "建单中") setModal("query-order");
-    else if (["已建单", "部分成功", "部分取消", "已取消"].includes(plan.status)) setModal("orders");
+    else if (plan.status === "已取消") readLatestForReorder(plan);
+    else if (["已建单", "部分成功", "部分取消"].includes(plan.status)) setModal("orders");
     else if (plan.status === "执行失败") setModal("failure");
   }
 
-  function confirmPlan(reconfirm = false) {
-    const currentVersion = Number(String(selected.snapshot || "V0").replace("V", "")) || 0;
-    const nextVersion = `V${currentVersion + 1}`;
+  function nextSnapshot(plan) {
+    const currentVersion = Number(String(plan.snapshot || "V0").replace("V", "")) || 0;
+    return `V${currentVersion + 1}`;
+  }
+
+  function nextExecutionBatch(plan) {
+    return `EX${String((plan.executionNo || 0) + 1).padStart(2, "0")}`;
+  }
+
+  function nextBidBatch(plan) {
+    return `FB${String((plan.bidBatches?.length || 0) + 1).padStart(2, "0")}`;
+  }
+
+  function buildPendingOrders(plan, count = 2) {
+    return Array.from({ length: Math.min(count, 3) }, (_, index) => ({
+      no: `PO26062200${20 + index}`,
+      supplier: ["华北优选供应链", "北京兴盛商贸", "天津鲜达供应链"][index],
+      sku: Math.max(8, Math.round(plan.skuCount / 3)),
+      amount: Math.round((plan.amount || 58300) / Math.min(count, 3)),
+      status: "可取消",
+    }));
+  }
+
+  function confirmDirectOrder() {
+    const snapshot = nextSnapshot(selected);
+    const executionBatch = nextExecutionBatch(selected);
+    const pendingOrders = buildPendingOrders(selected, selected.estimatedOrders || 2);
     updatePlan(selected.id, {
-      status: reconfirm ? selected.status : selected.method === "区采" ? "待发起竞标" : "待确认下单",
-      snapshot: nextVersion,
+      status: "建单中",
+      snapshot,
+      executionBatch,
+      executionNo: (selected.executionNo || 0) + 1,
+      pendingOrders,
+      external: `REQ${selected.id.slice(-6)}`,
       updated: "14:32",
     });
     setModal(null);
-    notify(`${reconfirm ? "计划重新确认成功" : "计划确认成功"}，已生成快照 ${nextVersion}`);
+    notify(`计划快照 ${snapshot} 与执行批次 ${executionBatch} 已保存，建单请求已提交`);
   }
 
-  const deadlineValid = deadline > "2026-06-22T15:00" && deadline <= "2026-06-22T23:59";
-
-  function startBid() {
+  function confirmPlanAndStartBid() {
+    const snapshot = nextSnapshot(selected);
+    const batch = nextBidBatch(selected);
     const readableDeadline = deadline.replace("T", " ");
+    const task = `BID${selected.id.slice(-6)}${batch.slice(-2)}`;
+    const bidBatches = [...(selected.bidBatches || []), {
+      batch,
+      task,
+      sku: selected.confirmedSku,
+      qty: selected.confirmQty,
+      deadline: readableDeadline,
+      status: "竞标中",
+    }];
     updatePlan(selected.id, {
-      status: "竞标中", external: `BID${selected.id.slice(-6)}`, deadline: readableDeadline, updated: "14:31",
+      status: "竞标中",
+      snapshot,
+      external: `${bidBatches.length}个竞标任务`,
+      deadline: readableDeadline,
+      bidBatches,
+      newSkuCount: 0,
+      newSkuQty: 0,
+      updated: "14:32",
     });
     setModal(null);
-    notify("竞标任务创建成功");
+    notify(`计划快照 ${snapshot} 与发标批次 ${batch} 已保存，竞标任务创建成功`);
   }
 
-  function confirmBid() {
-    updatePlan(selected.id, { status: "待确认下单", bidSnapshot: "B1", updated: "16:42", estimatedOrders: selected.suppliers || 6 });
+  function rebid() {
+    const snapshot = nextSnapshot(selected);
+    const batch = nextBidBatch(selected);
+    const readableDeadline = deadline.replace("T", " ");
+    const task = `BID${selected.id.slice(-6)}${batch.slice(-2)}`;
+    const bidBatches = [...(selected.bidBatches || []), {
+      batch,
+      task,
+      sku: selected.newSkuCount,
+      qty: selected.newSkuQty,
+      deadline: readableDeadline,
+      status: "竞标中",
+    }];
+    updatePlan(selected.id, {
+      status: "竞标中",
+      snapshot,
+      external: `${bidBatches.length}个竞标任务`,
+      bidBatches,
+      newSkuCount: 0,
+      newSkuQty: 0,
+      syncStatus: selected.syncStatus === "已同步" ? "待补充同步" : selected.syncStatus,
+      updated: "14:45",
+    });
     setModal(null);
-    notify("中标结果已确认，生成快照 B1");
+    notify(`仅新增 SKU 已进入发标批次 ${batch}，历史已发标 SKU 已排除`);
   }
 
-  function confirmOrder() {
-    const orders = Array.from({ length: Math.min(selected.estimatedOrders || 2, 3) }, (_, index) => ({
-      no: `PO26062200${20 + index}`,
-      supplier: ["华北优选供应链", "北京兴盛商贸", "天津鲜达供应链"][index],
-      sku: Math.max(8, Math.round(selected.skuCount / 3)),
-      amount: Math.round((selected.amount || 58300) / Math.min(selected.estimatedOrders || 2, 3)),
-      status: "可取消",
-    }));
+  function syncBidResult(plan = selected) {
+    if (syncingId) return;
+    setSelectedId(plan.id);
+    setSyncingId(plan.id);
+    window.setTimeout(() => {
+      updatePlan(plan.id, {
+        syncStatus: "已同步",
+        bidQty: plan.bidQty ?? plan.confirmQty,
+        manualBidQty: plan.manualBidQty ?? 0,
+        manualBidSku: plan.manualBidSku ?? 0,
+        suppliers: plan.suppliers || 5,
+        abnormalSku: plan.abnormalSku || 0,
+        lastSyncedAt: "2026-06-22 14:40",
+        updated: "14:40",
+      });
+      setSyncingId(null);
+      notify("中标结果已同步到同一飞书电子表格的“中标结果”Sheet");
+    }, 700);
+  }
+
+  function confirmBidAndOrder() {
+    const executionBatch = nextExecutionBatch(selected);
+    const pendingOrders = buildPendingOrders(selected, selected.suppliers || 2);
     updatePlan(selected.id, {
       status: "建单中",
-      pendingOrders: orders,
+      bidSnapshot: `B${(selected.executionNo || 0) + 1}`,
+      executionBatch,
+      executionNo: (selected.executionNo || 0) + 1,
+      estimatedOrders: selected.suppliers || 2,
+      pendingOrders,
       external: `REQ${selected.id.slice(-6)}`,
       updated: "16:50",
     });
     setModal(null);
-    notify("建单请求已提交，请查询建单结果");
+    notify(`中标结果快照已保存，执行批次 ${executionBatch} 建单请求已提交`);
   }
+
+  function readLatestForReorder(plan) {
+    if (readingKey) return;
+    const key = `${plan.id}:reorder`;
+    setSelectedId(plan.id);
+    setReadingKey(key);
+    window.setTimeout(() => {
+      setReadingKey(null);
+      setModal("reorder");
+    }, 650);
+  }
+
+  function reorderWithLatest() {
+    const plan = selected;
+    const executionBatch = nextExecutionBatch(plan);
+    const latestSku = plan.latestSheetSku ?? (plan.method === "区采" ? plan.manualBidSku : plan.confirmedSku) ?? 0;
+    const latestQty = plan.latestSheetQty ?? (plan.method === "区采" ? plan.manualBidQty : plan.confirmQty) ?? 0;
+    const latestTotalSku = plan.latestSheetTotalSku ?? plan.skuCount;
+    const snapshot = plan.method === "区采"
+      ? `B${(plan.executionNo || 0) + 1}`
+      : nextSnapshot(plan);
+    const pendingOrders = buildPendingOrders(
+      { ...plan, skuCount: latestTotalSku },
+      plan.orders?.length || plan.suppliers || 2,
+    );
+    updatePlan(plan.id, {
+      status: "建单中",
+      snapshot: plan.method === "厂家直采" ? snapshot : plan.snapshot,
+      bidSnapshot: plan.method === "区采" ? snapshot : plan.bidSnapshot,
+      skuCount: latestTotalSku,
+      confirmQty: plan.method === "厂家直采" ? latestQty : plan.confirmQty,
+      confirmedSku: plan.method === "厂家直采" ? latestSku : plan.confirmedSku,
+      manualBidQty: plan.method === "区采" ? latestQty : plan.manualBidQty,
+      manualBidSku: plan.method === "区采" ? latestSku : plan.manualBidSku,
+      executionBatch,
+      executionNo: (plan.executionNo || 0) + 1,
+      pendingOrders,
+      external: `REQ${plan.id.slice(-6)}R${(plan.executionNo || 0) + 1}`,
+      updated: "17:20",
+    });
+    setModal(null);
+    notify(`已读取飞书最新数据并保存快照 ${snapshot}，执行批次 ${executionBatch} 建单请求已提交`);
+  }
+
+  const deadlineValid = deadline > "2026-06-22T15:00" && deadline <= "2026-06-22T23:59";
 
   function queryOrder() {
     const orders = selected.pendingOrders || [
       { no: "PO2606220026", supplier: "北京冻品直供", sku: 16, amount: 24800, status: "可取消" },
       { no: "PO2606220027", supplier: "华北冷链供应链", sku: 12, amount: 21700, status: "可取消" },
     ];
-    updatePlan(selected.id, { status: "已建单", orders, pendingOrders: undefined, external: `${orders.length}个采购订单`, updated: "16:55" });
+    updatePlan(selected.id, {
+      status: "已建单",
+      orders,
+      pendingOrders: undefined,
+      external: `${orders.length}个采购订单`,
+      updated: "16:55",
+    });
     setModal(null);
     notify("已取得建单结果，返回 2 个采购订单号");
   }
 
-  function doCancelOrder() {
-    const nextOrders = (selected.orders || []).map((order) => order.no === cancelOrder.no ? { ...order, status: "已取消" } : order);
-    const allCancelled = nextOrders.every((order) => order.status === "已取消");
-    updatePlan(selected.id, { orders: nextOrders, status: allCancelled ? "已取消" : "部分取消", updated: "17:05" });
-    setCancelOrder(null);
-    setModal("orders");
-    notify(`订单 ${cancelOrder.no} 已取消`);
+  function cancelExecutionBatch() {
+    const orders = (selected.orders || []).map((order) => ({ ...order, status: "已取消" }));
+    updatePlan(selected.id, {
+      orders,
+      status: "已取消",
+      resetStatus: "已重置",
+      confirmQty: selected.method === "厂家直采" ? 0 : selected.confirmQty,
+      confirmedSku: selected.method === "厂家直采" ? 0 : selected.confirmedSku,
+      manualBidQty: selected.method === "区采" ? 0 : selected.manualBidQty,
+      manualBidSku: selected.method === "区采" ? 0 : selected.manualBidSku,
+      external: `执行批次 ${selected.executionBatch} 已取消`,
+      updated: "17:05",
+    });
+    setModal(null);
+    notify(`执行批次 ${selected.executionBatch} 已全量取消，人工确认量已重置为 0`);
   }
 
-  function canReconfirmPlan(plan) {
-    return plan.snapshot !== "—"
-      && ((plan.method === "区采" && plan.status === "待发起竞标")
-        || (plan.method === "厂家直采" && plan.status === "待确认下单"));
+  function showRebid(plan) {
+    return plan.method === "区采"
+      && ["竞标中", "已截标"].includes(plan.status)
+      && (plan.executionNo || 0) === 0;
   }
 
   return (
@@ -417,12 +602,18 @@ export function App() {
                 <thead>
                   <tr>
                     <th>计划日期</th><th>计划单号</th><th>仓库</th><th>采购品类</th><th>采购方式</th>
-                    <th>SKU数</th><th>当前状态</th><th>飞书文件</th><th>外部单据</th><th>更新时间</th><th>操作</th>
+                    <th>SKU数</th><th>当前状态</th><th>飞书表格</th><th>外部单据</th><th>更新时间</th><th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredPlans.map((plan) => {
                     const rowAction = statusAction(plan);
+                    const primaryReason = primaryDisabledReason(plan);
+                    const primaryReading = readingKey === `${plan.id}:plan`
+                      || readingKey === `${plan.id}:bid`
+                      || readingKey === `${plan.id}:reorder`;
+                    const rebidReading = readingKey === `${plan.id}:rebid`;
+                    const rowBusy = syncingId === plan.id || readingKey?.startsWith(`${plan.id}:`);
                     return (
                       <tr key={plan.id}>
                         <td>{plan.date}</td>
@@ -431,32 +622,59 @@ export function App() {
                         <td>{plan.category}</td>
                         <td>{plan.method}</td>
                         <td className="number-cell">{plan.skuCount}</td>
-                        <td><StatusTag status={plan.status} /></td>
                         <td>
-                          <div className="file-links">
-                            <button className="link-button" onClick={(e) => { e.stopPropagation(); openFeishu(plan, "plan"); }}>订货明细 <ExportOutlined /></button>
-                            {hasBidResultFile(plan) && (
-                              <button className="link-button" onClick={(e) => { e.stopPropagation(); openFeishu(plan, "bid"); }}>中标结果 <ExportOutlined /></button>
+                          <div className="status-stack">
+                            <StatusTag status={plan.status} />
+                            {plan.status === "已截标" && (
+                              <small className={`sync-state ${plan.syncStatus === "同步失败" ? "failed" : ""}`}>
+                                中标结果：{plan.syncStatus || "未同步"}
+                              </small>
                             )}
                           </div>
+                        </td>
+                        <td>
+                          <button className="link-button" onClick={(e) => {
+                            e.stopPropagation();
+                            openFeishu(plan, hasBidResultSheet(plan) ? "bid" : "plan");
+                          }}>飞书表格 <ExportOutlined /></button>
                         </td>
                         <td>{plan.external}</td>
                         <td>{plan.date} {plan.updated}</td>
                         <td>
                           <div className="row-actions">
-                            <button className="row-primary" onClick={() => handlePrimary(plan)}>
-                              {rowAction.icon}{rowAction.label}
-                            </button>
-                            {canReconfirmPlan(plan) && (
+                            <span className="action-wrapper" title={primaryReason || (primaryReading ? "正在读取飞书最新数据" : rowAction.label)}>
+                              <button
+                                className="row-primary"
+                                disabled={rowBusy || Boolean(primaryReason)}
+                                onClick={() => handlePrimary(plan)}
+                              >
+                                {syncingId === plan.id || primaryReading ? <ReloadOutlined /> : rowAction.icon}
+                                {syncingId === plan.id ? "同步中" : primaryReading ? "读取中" : rowAction.label}
+                              </button>
+                            </span>
+                            {showRebid(plan) && (
+                              <span className="action-wrapper" title={rebidReading ? "正在读取飞书并比对已发标 SKU" : "点击后读取飞书，仅对当日新增且未成功发标的 SKU 发标"}>
+                                <button
+                                  className="row-secondary"
+                                  disabled={rowBusy}
+                                  onClick={() => {
+                                    readFeishuThen(plan, "rebid", "rebid");
+                                  }}
+                                >{rebidReading ? <ReloadOutlined /> : <SendOutlined />}{rebidReading ? "读取中" : "再次发标"}</button>
+                              </span>
+                            )}
+                            {plan.status === "已截标" && plan.syncStatus === "已同步" && (
+                              <button className="row-secondary" disabled={rowBusy} onClick={() => {
+                                setSelectedId(plan.id);
+                                syncBidResult(plan);
+                              }}><ReloadOutlined />{syncingId === plan.id ? "同步中" : "重新同步"}</button>
+                            )}
+                            {plan.status === "已取消" && (
                               <button className="row-secondary" onClick={() => {
                                 setSelectedId(plan.id);
-                                setModal("reconfirm-plan");
-                              }}><ReloadOutlined />重新确认</button>
+                                setModal("orders");
+                              }}><FileSearchOutlined />查看已取消订单</button>
                             )}
-                            <button className="row-record" onClick={() => {
-                              setSelectedId(plan.id);
-                              setModal("history");
-                            }}><UnorderedListOutlined />操作记录</button>
                           </div>
                         </td>
                       </tr>
@@ -477,40 +695,40 @@ export function App() {
         </div>
       </main>
 
-      {modal === "confirm-plan" && (
-        <Modal title="确认计划" confirmText="确认并生成快照" onClose={() => setModal(null)} onConfirm={() => confirmPlan(false)}>
-          <div className="modal-notice success-notice"><CheckCircleOutlined />商品级订货建议明细读取完成，数据校验通过</div>
+      {modal === "confirm-direct" && (
+        <Modal
+          title="确认计划并下单"
+          confirmText="确认计划并下单"
+          disabled={!selected.confirmedSku || selected.confirmQty <= 0}
+          onClose={() => setModal(null)}
+          onConfirm={confirmDirectOrder}
+        >
+          <div className={`modal-notice ${selected.confirmQty > 0 ? "success-notice" : "danger-notice"}`}>
+            {selected.confirmQty > 0 ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />}
+            计划明细 Sheet 初始人工确认量为 0，当前 {selected.confirmedSku || 0} 个 SKU 已填写
+          </div>
           <div className="summary-grid">
-            <span>计划单号</span><b>{selected.id}</b><span>待生成快照</span><b>V1</b>
-            <span>SKU数</span><b>{selected.skuCount}</b><span>改量SKU</span><b>{selected.changedSku}</b>
-            <span>系统建议量</span><b>{formatNumber(selected.suggestionQty)}</b><span>人工确认量</span><b>{formatNumber(selected.confirmQty)}</b>
+            <span>计划单号</span><b>{selected.id}</b><span>SKU数</span><b>{selected.skuCount}</b>
+            <span>确认SKU</span><b>{selected.confirmedSku || 0}</b><span>系统建议量</span><b>{formatNumber(selected.suggestionQty)}</b>
+            <span>人工确认量</span><b>{formatNumber(selected.confirmQty)}</b>
           </div>
           <button className="inline-link" onClick={() => openFeishu(selected, "plan")}>打开订货明细核对 <ExportOutlined /></button>
-          <p className="modal-tip">确认后将保存不可变快照。飞书后续修改不会影响本次执行数据。</p>
+          <p className="modal-tip">确认后先保存不可变计划快照，再提交建单请求。</p>
         </Modal>
       )}
 
-      {modal === "reconfirm-plan" && (
-        <Modal title="重新确认计划" confirmText="确认并生成新版本" onClose={() => setModal(null)} onConfirm={() => confirmPlan(true)}>
-          <div className="modal-notice success-notice"><CheckCircleOutlined />商品级订货建议明细最新内容读取完成，数据校验通过</div>
-          <div className="summary-grid">
-            <span>计划单号</span><b>{selected.id}</b><span>当前快照</span><b>{selected.snapshot}</b>
-            <span>SKU数</span><b>{selected.skuCount}</b><span>改量SKU</span><b>{selected.changedSku}</b>
-            <span>人工确认量</span><b>{formatNumber(selected.confirmQty)}</b>
-            <span>新快照版本</span><b>V{(Number(String(selected.snapshot).replace("V", "")) || 0) + 1}</b>
+      {modal === "confirm-and-bid" && (
+        <Modal title="确认计划并发起竞标" confirmText="确认计划并发起竞标" disabled={!deadlineValid || !selected.confirmedSku || selected.confirmQty <= 0} onClose={() => setModal(null)} onConfirm={confirmPlanAndStartBid}>
+          <div className={`modal-notice ${selected.confirmQty > 0 ? "success-notice" : "danger-notice"}`}>
+            {selected.confirmQty > 0 ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />}
+            计划明细 Sheet 初始人工确认量为 0，当前 {selected.confirmedSku || 0} 个 SKU 已填写
           </div>
-          <p className="modal-tip">新版本只替换当前待执行快照，历史快照继续保留。已发起竞标或已提交建单后不允许重新确认。</p>
-        </Modal>
-      )}
-
-      {modal === "start-bid" && (
-        <Modal title="发起竞标" confirmText="确认发起" disabled={!deadlineValid} onClose={() => setModal(null)} onConfirm={startBid}>
-          <p className="modal-intro">确认以下信息并设置截止时间，发起竞标后将通知供应商。</p>
+          <p className="modal-intro">确认计划内容并设置截止时间。提交后保存计划快照并直接发起竞标。</p>
           <div className="summary-grid">
-            <span>计划单号</span><b>{selected.id}</b><span>计划快照</span><b>{selected.snapshot}</b>
-            <span>仓库</span><b>{selected.warehouse}</b><span>采购品类</span><b>{selected.category}</b>
-            <span>SKU数</span><b>{selected.skuCount}</b><span>需求数量</span><b>{formatNumber(selected.confirmQty)}</b>
-            <span>含税金额（预估）</span><b>￥58,300.00</b><span>服务器时间</span><b>2026-06-22 14:30</b>
+            <span>计划单号</span><b>{selected.id}</b><span>仓库</span><b>{selected.warehouse}</b>
+            <span>采购品类</span><b>{selected.category}</b><span>本批SKU</span><b>{selected.confirmedSku || 0}</b>
+            <span>发标数量</span><b>{formatNumber(selected.confirmQty)}</b><span>已发标SKU</span><b>0</b>
+            <span>服务器时间</span><b>2026-06-22 14:30</b>
           </div>
           <label className="deadline-field">截止时间
             <input type="datetime-local" min="2026-06-22T15:01" max="2026-06-22T23:59" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
@@ -518,55 +736,92 @@ export function App() {
           <p className={`field-help ${deadlineValid ? "" : "error-text"}`}>
             {deadlineValid ? "晚于当前时间 30 分钟，且不晚于当日 23:59" : "截止时间须晚于 15:00，且不晚于当日 23:59"}
           </p>
+          <button className="inline-link" onClick={() => openFeishu(selected, "plan")}>打开计划明细核对 <ExportOutlined /></button>
+        </Modal>
+      )}
+
+      {modal === "rebid" && (
+        <Modal title="再次发标" confirmText="再次发标" disabled={!deadlineValid || !selected.newSkuCount} onClose={() => setModal(null)} onConfirm={rebid}>
+          <div className="modal-notice success-notice"><CheckCircleOutlined />已按计划日期和 SKU 排除当日成功发标数据</div>
+          <p className="modal-intro">读取飞书最新计划后，仅对本次新增且未成功发标的 SKU 发起竞标。</p>
+          <div className="summary-grid">
+            <span>计划单号</span><b>{selected.id}</b><span>仓库</span><b>{selected.warehouse}</b>
+            <span>采购品类</span><b>{selected.category}</b><span>本批SKU</span><b>{selected.newSkuCount || 0}</b>
+            <span>发标数量</span><b>{formatNumber(selected.newSkuQty)}</b><span>已发标SKU</span><b>{selected.confirmedSku || 0}</b>
+            <span>服务器时间</span><b>2026-06-22 14:45</b>
+          </div>
+          <label className="deadline-field">截止时间
+            <input type="datetime-local" min="2026-06-22T15:01" max="2026-06-22T23:59" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+          </label>
+          <p className="modal-tip">已成功发标 SKU 不会重复提交。计划进入建单中后将永久关闭再次发标入口。</p>
         </Modal>
       )}
 
       {modal === "view-bid" && (
         <Modal title="竞标详情" confirmText="关闭" onClose={() => setModal(null)} onConfirm={() => setModal(null)}>
-          <div className="summary-grid">
-            <span>竞标任务号</span><b>{selected.external}</b><span>计划单号</span><b>{selected.id}</b>
-            <span>截止时间</span><b>{selected.deadline}</b><span>当前阶段</span><b>未截标</b>
-            <span>SKU数</span><b>{selected.skuCount}</b><span>竞标数量</span><b>{formatNumber(selected.confirmQty)}</b>
+          <div className="batch-list">
+            {(selected.bidBatches || []).map((batch) => (
+              <div className="batch-row" key={batch.batch}>
+                <div><b>{batch.batch}</b><span>{batch.task}</span></div>
+                <div><span>{batch.sku} SKU · {formatNumber(batch.qty)}</span><small>{batch.deadline}</small></div>
+                <StatusTag status={batch.status === "已截标" ? "已截标" : "竞标中"} />
+              </div>
+            ))}
           </div>
-          <p className="modal-tip">到达截止时间后，系统自动查询中标结果。查询成功后生成“中标结果”Sheet，并将计划状态更新为“待确认中标”。</p>
+          <p className="modal-tip">任一发标批次尚未截标时，计划保持“竞标中”。全部截标后，计划员再统一同步中标结果。</p>
         </Modal>
       )}
 
-      {modal === "confirm-bid" && (
-        <Modal title="确认中标结果" confirmText="确认并生成快照" disabled={selected.abnormalSku > 0} onClose={() => setModal(null)} onConfirm={confirmBid}>
-          <div className="modal-notice success-notice"><CheckCircleOutlined />中标结果确认表读取完成</div>
-          <div className="summary-grid">
-            <span>竞标任务号</span><b>{selected.external}</b><span>待生成快照</span><b>B1</b>
-            <span>中标SKU</span><b>{selected.skuCount - (selected.abnormalSku || 0)}</b><span>供应商数</span><b>{selected.suppliers}</b>
-            <span>原始中标总量</span><b>{formatNumber(selected.bidQty)}</b><span>确认中标总量</span><b>{formatNumber(selected.finalBidQty)}</b>
-            <span>修改数量SKU</span><b>3</b><span>异常SKU</span><b className="warning-text">{selected.abnormalSku || 0}</b>
+      {modal === "confirm-bid-and-order" && (
+        <Modal
+          title="确认中标并下单"
+          confirmText="确认中标并下单"
+          disabled={selected.abnormalSku > 0 || !selected.manualBidSku || selected.manualBidQty <= 0}
+          onClose={() => setModal(null)}
+          onConfirm={confirmBidAndOrder}
+        >
+          <div className={`modal-notice ${selected.manualBidQty > 0 ? "success-notice" : "danger-notice"}`}>
+            {selected.manualBidQty > 0 ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />}
+            中标结果 Sheet 人工确认量初始为 0，当前 {selected.manualBidSku || 0} 个 SKU 已填写
           </div>
-          <button className="inline-link" onClick={() => openFeishu(selected, "bid")}>打开中标结果确认表 <ExportOutlined /></button>
-          <p className="modal-tip">后续下单将使用“确认中标量”。原始中标结果会独立保存。</p>
-        </Modal>
-      )}
-
-      {modal === "confirm-order" && (
-        <Modal title="确认下单" confirmText="确认提交建单" onClose={() => setModal(null)} onConfirm={confirmOrder}>
-          <div className="modal-notice success-notice"><CheckCircleOutlined />权限、快照和重复建单校验通过</div>
           <div className="summary-grid">
-            <span>计划快照</span><b>{selected.snapshot}</b><span>中标快照</span><b>{selected.method === "区采" ? selected.bidSnapshot || "B1" : "不适用"}</b>
-            <span>预计订单数</span><b>{selected.estimatedOrders || 2}</b><span>供应商数</span><b>{selected.suppliers || 2}</b>
-            <span>SKU数</span><b>{selected.skuCount}</b><span>订货总量</span><b>{formatNumber(selected.finalBidQty || selected.confirmQty)}</b>
-            <span>含税金额（预估）</span><b>￥{formatNumber(selected.amount || 58300)}</b><span>重复订单</span><b className="success-text">0</b>
+            <span>竞标任务</span><b>{selected.bidBatches?.length || 1} 个</b><span>中标SKU</span><b>{selected.skuCount - (selected.abnormalSku || 0)}</b>
+            <span>供应商数</span><b>{selected.suppliers}</b><span>原始中标总量</span><b>{formatNumber(selected.bidQty)}</b>
+            <span>人工确认总量</span><b>{formatNumber(selected.manualBidQty)}</b><span>确认SKU</span><b>{selected.manualBidSku || 0}</b>
           </div>
-          <p className="modal-tip">订单将按供应商和下游拆单规则创建。提交后请等待明确结果，不要重复操作。</p>
+          <button className="inline-link" onClick={() => openFeishu(selected, "bid")}>打开飞书表格 · 中标结果 Sheet <ExportOutlined /></button>
+          <p className="modal-tip">确认后保存中标结果快照，并使用人工确认量提交建单请求。</p>
         </Modal>
       )}
 
       {modal === "query-order" && (
         <Modal title="查询建单结果" confirmText="查询最新结果" onClose={() => setModal(null)} onConfirm={queryOrder}>
           <div className="summary-grid">
-            <span>计划单号</span><b>{selected.id}</b><span>请求流水号</span><b>{selected.external}</b>
-            <span>提交时间</span><b>{selected.date} {selected.updated}</b><span>当前状态</span><b>建单处理中</b>
-            <span>预计订单数</span><b>{selected.estimatedOrders || 2}</b><span>重复提交保护</span><b className="success-text">已启用</b>
+            <span>计划单号</span><b>{selected.id}</b><span>提交时间</span><b>{selected.date} {selected.updated}</b>
+            <span>当前状态</span><b>建单处理中</b>
           </div>
           <p className="modal-tip">查询只获取最新结果，不会重复提交建单请求。</p>
+        </Modal>
+      )}
+
+      {modal === "reorder" && (
+        <Modal
+          title="再次下单"
+          confirmText="再次下单"
+          onClose={() => setModal(null)}
+          onConfirm={reorderWithLatest}
+        >
+          <div className="modal-notice success-notice">
+            <CheckCircleOutlined />
+            已读取飞书最新数据，当前展示的是最新人工确认结果
+          </div>
+          <div className="summary-grid">
+            <span>计划单号</span><b>{selected.id}</b><span>SKU数</span><b>{selected.latestSheetTotalSku ?? selected.skuCount}</b>
+            <span>确认SKU</span><b>{selected.latestSheetSku ?? selected.confirmedSku ?? 0}</b><span>系统建议量</span><b>{formatNumber(selected.suggestionQty)}</b>
+            <span>人工确认量</span><b>{formatNumber(selected.latestSheetQty ?? selected.confirmQty ?? 0)}</b>
+          </div>
+          <button className="inline-link" onClick={() => openFeishu(selected, selected.method === "区采" ? "bid" : "plan")}>打开飞书表格核对 <ExportOutlined /></button>
+          <p className="modal-tip">确认后读取到的最新表格数据将直接用于新一轮下单。</p>
         </Modal>
       )}
 
@@ -581,31 +836,19 @@ export function App() {
         </Modal>
       )}
 
-      {modal === "history" && (
-        <Modal title={`操作记录 · ${selected.id}`} confirmText="关闭" onClose={() => setModal(null)} onConfirm={() => setModal(null)}>
-          <div className="history-summary">
-            <span>{selected.warehouse}</span>
-            <span>{selected.category}</span>
-            <span>{selected.method}</span>
+      {modal === "orders" && (
+        <Modal
+          title={selected.status === "部分成功" ? "处理结果" : selected.status === "已取消" ? "已取消订单" : "采购订单"}
+          confirmText={["已建单", "部分成功"].includes(selected.status) ? "全量取消本批次" : "关闭"}
+          danger={["已建单", "部分成功"].includes(selected.status)}
+          onClose={() => setModal(null)}
+          onConfirm={() => setModal(["已建单", "部分成功"].includes(selected.status) ? "cancel-batch" : null)}
+        >
+          <div className="batch-summary">
+            <span>执行批次 {selected.executionBatch || "EX01"}</span>
+            <span>{selected.orders?.length || 0} 个采购订单</span>
             <StatusTag status={selected.status} />
           </div>
-          <div className="timeline history-timeline">
-            <div><i /><span>{selected.date} 09:00</span><b>系统生成订货计划及订货明细文件</b></div>
-            {selected.snapshot !== "—" && (
-              <div><i /><span>{selected.date} 09:10</span><b>{selected.planner} 确认计划，生成快照 {selected.snapshot}</b></div>
-            )}
-            {hasBidResultFile(selected) && (
-              <div><i /><span>{selected.date} 10:45</span><b>系统生成中标结果确认文件</b></div>
-            )}
-            {selected.external !== "—" && (
-              <div><i /><span>{selected.date} {selected.updated}</span><b>状态更新为「{selected.status}」</b></div>
-            )}
-          </div>
-        </Modal>
-      )}
-
-      {modal === "orders" && (
-        <Modal title={selected.status === "部分成功" ? "处理结果" : selected.status === "已取消" ? "取消记录" : "采购订单"} confirmText="关闭" onClose={() => setModal(null)} onConfirm={() => setModal(null)}>
           {selected.failureReason && <div className="modal-notice danger-notice"><ExclamationCircleOutlined />{selected.failureReason}</div>}
           <div className="orders-list">
             {(selected.orders || []).map((order) => (
@@ -616,7 +859,6 @@ export function App() {
                 </div>
                 <div className="order-card-actions">
                   <span className={`order-state ${order.status === "已取消" ? "cancelled" : ""}`}>{order.status}</span>
-                  {order.status === "可取消" && <button className="text-danger" onClick={() => { setCancelOrder(order); setModal(null); }}><DeleteOutlined />取消订单</button>}
                 </div>
               </div>
             ))}
@@ -624,14 +866,15 @@ export function App() {
         </Modal>
       )}
 
-      {cancelOrder && (
-        <Modal title="取消采购订单" confirmText="确认取消" danger onClose={() => setCancelOrder(null)} onConfirm={doCancelOrder}>
-          <div className="modal-notice danger-notice"><ExclamationCircleOutlined />取消后不可恢复，请确认订单信息</div>
+      {modal === "cancel-batch" && (
+        <Modal title="全量取消本执行批次" confirmText="确认全量取消" danger onClose={() => setModal("orders")} onConfirm={cancelExecutionBatch}>
+          <div className="modal-notice danger-notice"><ExclamationCircleOutlined />将整单取消本批次下全部采购订单，不支持按 SKU 部分取消</div>
           <div className="summary-grid">
-            <span>采购订单号</span><b>{cancelOrder.no}</b><span>当前状态</span><b>可取消</b>
-            <span>供应商</span><b>{cancelOrder.supplier}</b><span>SKU数</span><b>{cancelOrder.sku}</b>
-            <span>订单金额</span><b>￥{formatNumber(cancelOrder.amount)}</b><span>影响范围</span><b>仅当前订单</b>
+            <span>执行批次</span><b>{selected.executionBatch || "EX01"}</b><span>订单数量</span><b>{selected.orders?.length || 0}</b>
+            <span>SKU数</span><b>{selected.confirmedSku || selected.manualBidSku || selected.skuCount}</b><span>订单金额</span><b>￥{formatNumber((selected.orders || []).reduce((sum, order) => sum + order.amount, 0))}</b>
+            <span>取消范围</span><b>本批次全部订单</b><span>取消后状态</span><b>已取消</b>
           </div>
+          <p className="modal-tip">取消成功后，对应 Sheet 的人工确认量自动重置为 0。区采保留竞标和中标原始结果，但不允许再次发标。</p>
         </Modal>
       )}
 
@@ -645,14 +888,59 @@ export function App() {
               </div>
               <IconButton title="关闭状态流程" onClick={() => setFlowOpen(false)}><CloseOutlined /></IconButton>
             </header>
-            <div className="flow-image-wrap">
-              <img src={`${import.meta.env.BASE_URL}status-flow-v1.png`} alt="订货计划状态流程图" />
+            <div className="flow-content">
+              <section className="flow-lane">
+                <header><ShoppingCartOutlined /><div><b>厂家直采</b><span>确认计划后直接提交建单</span></div></header>
+                <div className="flow-steps">
+                  <FlowStep label="待确认计划" action="人工确认量默认 0 / 填写后确认下单" tone="warning" />
+                  <RightOutlined />
+                  <FlowStep label="建单中" action="查询建单结果" tone="processing" />
+                  <RightOutlined />
+                  <FlowResultSteps />
+                </div>
+                <p className="flow-note">全部订单取消后，再次下单读取计划明细最新内容，不做业务校验并直接创建新执行批次。</p>
+              </section>
+              <section className="flow-lane">
+                <header><SendOutlined /><div><b>区采</b><span>截标后手动同步中标结果</span></div></header>
+                <div className="flow-steps flow-steps-regional">
+                  <FlowStep label="待确认计划" action="人工确认量默认 0 / 首次发标" tone="warning" />
+                  <RightOutlined />
+                  <FlowStep label="竞标中" action="等待截标 / 新增 SKU 可再次发标" tone="processing" />
+                  <RightOutlined />
+                  <FlowStep label="已截标" action="汇总同步 / 人工确认量默认 0" tone="warning" />
+                  <RightOutlined />
+                  <FlowStep label="建单中" action="查询建单结果" tone="processing" />
+                  <RightOutlined />
+                  <FlowResultSteps />
+                </div>
+                <p className="flow-note">建单前只对当日未发标的新增 SKU 再次发标。建单后永久关闭发标入口；全部取消后读取中标结果最新内容并直接下单。</p>
+              </section>
             </div>
           </section>
         </div>
       )}
 
       {toast && <div className="toast"><CheckCircleOutlined />{toast}</div>}
+    </div>
+  );
+}
+
+function FlowStep({ label, action, tone }) {
+  return (
+    <div className={`flow-step ${tone}`}>
+      <b>{label}</b>
+      <span>{action}</span>
+    </div>
+  );
+}
+
+function FlowResultSteps() {
+  return (
+    <div className="flow-results">
+      <FlowStep label="已建单" action="可全量取消执行批次" tone="success" />
+      <FlowStep label="部分成功" action="部分订单失败" tone="warning" />
+      <FlowStep label="执行失败" action="未创建订单" tone="danger" />
+      <FlowStep label="已取消" action="读取最新表格后直接下单" tone="muted" />
     </div>
   );
 }
