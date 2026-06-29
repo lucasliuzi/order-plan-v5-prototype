@@ -667,7 +667,7 @@ export function App() {
                               <button className="row-secondary" disabled={rowBusy} onClick={() => {
                                 setSelectedId(plan.id);
                                 syncBidResult(plan);
-                              }}><ReloadOutlined />{syncingId === plan.id ? "同步中" : "重新同步"}</button>
+                              }}><ReloadOutlined />{syncingId === plan.id ? "同步中" : "重新同步中标结果"}</button>
                             )}
                             {plan.status === "已取消" && (
                               <button className="row-secondary" onClick={() => {
