@@ -601,7 +601,7 @@ export function App() {
               <table>
                 <thead>
                   <tr>
-                    <th>计划日期</th><th>计划单号</th><th>仓库</th><th>采购品类</th>
+                    <th>计划日期</th><th>计划单号</th><th>仓库</th><th>采购方式</th>
                     <th>SKU数</th><th>当前状态</th><th>飞书表格</th><th>外部单据</th><th>更新时间</th><th>操作</th>
                   </tr>
                 </thead>
@@ -619,7 +619,7 @@ export function App() {
                         <td>{plan.date}</td>
                         <td>{plan.id}</td>
                         <td>{plan.warehouse}</td>
-                        <td>{plan.category}</td>
+                        <td>{plan.method}</td>
                         <td className="number-cell">{plan.skuCount}</td>
                         <td>
                           <div className="status-stack">
